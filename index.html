@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Votación · Nombre del Festival · ECO Live</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;700;900&family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #060606; --surface: #101010; --surface2: #161616;
+  --border: #1e1e1e; --border2: #282828;
+  --light: #F2EFE9; --muted: #4a4a4a; --muted2: #666;
+}
+body { background: var(--bg); color: var(--light); font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+body::before {
+  content: ''; position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 9999;
+}
+
+/* ━━━ IDENTITY GATE ━━━ */
+.gate {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 500; padding: 24px;
+  transition: opacity 0.4s, transform 0.4s;
+}
+.gate.hidden { opacity: 0; pointer-events: none; transform: translateY(-12px); }
+
+.gate-box {
+  width: 100%; max-width: 440px;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  padding: 40px 32px;
+}
+.gate-logo {
+  font-family: 'Unbounded', sans-serif; font-size: 9px; font-weight: 900;
+  letter-spacing: 0.2em; color: var(--muted); margin-bottom: 36px;
+}
+.gate-title {
+  font-family: 'Unbounded', sans-serif;
+  font-size: clamp(28px, 7vw, 44px); font-weight: 900;
+  letter-spacing: -0.03em; line-height: 0.95; margin-bottom: 8px;
+}
+.gate-title em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: #444; }
+.gate-sub { font-size: 12px; color: var(--muted2); margin-bottom: 36px; line-height: 1.6; }
+.gate-label {
+  font-family: 'Unbounded', sans-serif; font-size: 8px; font-weight: 700;
+  letter-spacing: 0.25em; text-transform: uppercase; color: var(--muted);
+  display: block; margin-bottom: 10px;
+}
+.gate-input {
+  width: 100%; background: var(--bg); border: 1px solid var(--border2);
+  color: var(--light); font-family: 'DM Sans', sans-serif; font-size: 18px;
+  padding: 14px 16px; outline: none; border-radius: 2px;
+  transition: border-color 0.2s; margin-bottom: 16px;
+}
+.gate-input:focus { border-color: #444; }
+.gate-input::placeholder { color: #222; }
+.gate-btn {
+  width: 100%; background: var(--light); color: #000;
+  font-family: 'Unbounded', sans-serif; font-size: 10px; font-weight: 900;
+  letter-spacing: 0.1em; padding: 16px; border: none;
+  border-radius: 2px; cursor: pointer; transition: opacity 0.2s;
+}
+.gate-btn:hover { opacity: 0.85; }
+
+/* ━━━ TAB BAR ━━━ */
+.tab-bar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(6,6,6,0.96); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 20px; gap: 0;
+}
+.tab-logo {
+  font-family: 'Unbounded', sans-serif; font-size: 9px; font-weight: 900;
+  letter-spacing: 0.15em; color: var(--muted2); margin-right: 20px;
+  padding: 16px 0; white-space: nowrap; display: none;
+}
+@media(min-width:600px){ .tab-logo { display: block; } }
+
+.tab-btn {
+  font-family: 'Unbounded', sans-serif; font-size: 8px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+  background: none; border: none; padding: 16px 12px; cursor: pointer;
+  border-bottom: 2px solid transparent; transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+@media(min-width:600px){ .tab-btn { padding: 16px 18px; font-size: 9px; } }
+.tab-btn:hover { color: var(--muted2); }
+.tab-btn.active { color: var(--light); border-bottom-color: var(--light); }
+
+.tab-right {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+}
+.voter-pill-bar {
+  font-size: 10px; color: var(--muted2); padding: 5px 11px;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 20px; white-space: nowrap; cursor: pointer;
+  transition: border-color 0.2s;
+}
+.voter-pill-bar:hover { border-color: #333; }
+.voter-pill-bar strong { color: var(--light); }
+
+/* ━━━ TAB PANELS ━━━ */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ━━━ VOTE PANEL ━━━ */
+.vote-header {
+  max-width: 1440px; margin: 0 auto;
+  padding: 32px 20px 24px;
+  display: flex; align-items: flex-end; justify-content: space-between;
+  flex-wrap: wrap; gap: 20px;
+}
+@media(min-width:600px){ .vote-header { padding: 48px 40px 32px; } }
+
+.vote-title {
+  font-family: 'Unbounded', sans-serif;
+  font-size: clamp(26px, 5vw, 52px); font-weight: 900;
+  letter-spacing: -0.03em; line-height: 0.95;
+}
+.vote-title em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: #555; }
+
+.vote-meta { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.meta-stat { text-align: center; }
+.meta-num { font-family: 'Unbounded', sans-serif; font-size: 26px; font-weight: 900; display: block; }
+.meta-label { font-size: 8px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); }
+.meta-div { width: 1px; height: 36px; background: var(--border); }
+
+.instructions-bar {
+  max-width: 1440px; margin: 0 auto; padding: 0 20px 24px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+@media(min-width:600px){ .instructions-bar { padding: 0 40px 28px; gap: 24px; } }
+
+.i-item { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--muted2); }
+.i-badge {
+  font-family: 'Unbounded', sans-serif; font-size: 7px; font-weight: 700;
+  padding: 3px 7px; border-radius: 2px; letter-spacing: 0.05em;
+}
+.i-badge.gold   { background: #C8A84B; color: #000; }
+.i-badge.silver { background: #777; color: #000; }
+.i-badge.bronze { background: #7A4F30; color: #fff; }
+
+/* ━━━ CARDS GRID ━━━ */
+.names-grid {
+  max-width: 1440px; margin: 0 auto; padding: 0 20px 40px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+}
+@media(min-width:480px){ .names-grid { grid-template-columns: repeat(2, 1fr); } }
+@media(min-width:700px){ .names-grid { grid-template-columns: repeat(3, 1fr); padding: 0 40px 48px; } }
+@media(min-width:1000px){ .names-grid { grid-template-columns: repeat(4, 1fr); } }
+@media(min-width:1300px){ .names-grid { grid-template-columns: repeat(5, 1fr); } }
+
+/* ━━━ CARD ━━━ */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 16px 14px 14px; position: relative; cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
+  user-select: none;
+}
+@media(min-width:600px){ .card { padding: 24px 20px 18px; } }
+
+.card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--c); transform: scaleX(0); transform-origin: left;
+  transition: transform 0.3s ease;
+}
+.card:hover { border-color: #2a2a2a; background: #131313; transform: translateY(-1px); }
+.card:hover::before { transform: scaleX(0.35); }
+.card.voted-1::before, .card.voted-2::before, .card.voted-3::before { transform: scaleX(1); }
+.card.voted-1 { border-color: rgba(200,168,75,0.25); background: #141210; }
+.card.voted-2 { border-color: rgba(136,136,136,0.2); background: #121212; }
+.card.voted-3 { border-color: rgba(139,94,60,0.25); background: #131110; }
+.card.voted-1 .card-name { color: #C8A84B; }
+.card.voted-2 .card-name { color: #aaa; }
+.card.voted-3 .card-name { color: #C09070; }
+
+.rank-badge {
+  position: absolute; top: 8px; right: 8px;
+  font-family: 'Unbounded', sans-serif; font-size: 6.5px; font-weight: 700;
+  padding: 3px 6px; border-radius: 2px; letter-spacing: 0.05em;
+  opacity: 0; transform: scale(0.8); transition: opacity 0.2s, transform 0.2s;
+}
+.card.voted-1 .rank-badge { background: #C8A84B; color: #000; opacity: 1; transform: scale(1); }
+.card.voted-2 .rank-badge { background: #777; color: #000; opacity: 1; transform: scale(1); }
+.card.voted-3 .rank-badge { background: #7A4F30; color: #fff; opacity: 1; transform: scale(1); }
+
+.card-name {
+  font-family: 'Unbounded', sans-serif;
+  font-size: clamp(16px, 2.8vw, 28px); font-weight: 900;
+  letter-spacing: -0.02em; line-height: 1; margin-bottom: 7px;
+  transition: color 0.2s;
+}
+.card-tagline {
+  font-family: 'Instrument Serif', serif; font-style: italic;
+  font-size: 11px; color: #555; line-height: 1.5; margin-bottom: 10px;
+  min-height: 32px; display: none;
+}
+@media(min-width:500px){ .card-tagline { display: block; } }
+
+.card-pills { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 10px; }
+.pill {
+  font-size: 7px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 20px; border: 1px solid #222; color: #444;
+}
+.card-footer { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.vote-dots { display: flex; gap: 3px; }
+.vote-dot {
+  width: 5px; height: 5px; border-radius: 50%; background: var(--c);
+  opacity: 0; transform: scale(0); transition: opacity 0.3s, transform 0.3s;
+}
+.vote-dot.active { opacity: 1; transform: scale(1); }
+.vote-count { font-family: 'Unbounded', sans-serif; font-size: 9px; font-weight: 700; color: var(--muted2); margin-left: 4px; }
+.click-hint { font-size: 7px; color: #222; letter-spacing: 0.1em; text-transform: uppercase; transition: color 0.2s; }
+.card:hover .click-hint { color: #3a3a3a; }
+.card.voted-1 .click-hint, .card.voted-2 .click-hint, .card.voted-3 .click-hint { color: #2a2a2a; }
+
+/* ━━━ PROPOSE SECTION ━━━ */
+.propose-section {
+  max-width: 1440px; margin: 0 auto; padding: 0 20px 48px;
+}
+@media(min-width:600px){ .propose-section { padding: 0 40px 60px; } }
+
+.propose-header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px; margin-bottom: 20px;
+  padding-top: 32px; border-top: 1px solid var(--border);
+}
+.propose-title {
+  font-family: 'Unbounded', sans-serif; font-size: clamp(18px, 3vw, 28px);
+  font-weight: 900; letter-spacing: -0.02em; line-height: 1;
+}
+.propose-title em { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; color: #444; }
+.propose-sub { font-size: 11px; color: var(--muted2); margin-top: 5px; }
+
+.propose-grid {
+  display: grid; grid-template-columns: 1fr;
+  gap: 10px; margin-bottom: 16px;
+}
+@media(min-width:600px){ .propose-grid { grid-template-columns: repeat(3, 1fr); } }
+
+.propose-field { display: flex; flex-direction: column; gap: 7px; }
+.propose-num {
+  font-family: 'Unbounded', sans-serif; font-size: 8px; font-weight: 700;
+  letter-spacing: 0.2em; color: var(--muted);
+  display: flex; align-items: center; gap: 8px;
+}
+.propose-num span.pn-badge {
+  display: inline-block; width: 18px; height: 18px; border-radius: 50%;
+  font-size: 8px; font-weight: 900; display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0;
+}
+.pn-1 { background: #C8A84B; color: #000; }
+.pn-2 { background: #777; color: #000; }
+.pn-3 { background: #7A4F30; color: #fff; }
+
+.propose-input {
+  background: var(--surface); border: 1px solid var(--border2);
+  color: var(--light); font-family: 'DM Sans', sans-serif; font-size: 15px;
+  padding: 12px 14px; outline: none; border-radius: 2px;
+  transition: border-color 0.2s; width: 100%;
+}
+.propose-input:focus { border-color: #444; }
+.propose-input::placeholder { color: #252525; }
+
+.propose-why {
+  background: var(--surface); border: 1px solid var(--border2);
+  color: #888; font-family: 'DM Sans', sans-serif; font-size: 11px;
+  padding: 8px 14px; outline: none; border-radius: 2px;
+  transition: border-color 0.2s; width: 100%; resize: none; height: 60px;
+  line-height: 1.5;
+}
+.propose-why:focus { border-color: #333; }
+.propose-why::placeholder { color: #252525; }
+
+.propose-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn-propose {
+  background: var(--light); color: #000;
+  font-family: 'Unbounded', sans-serif; font-size: 8.5px; font-weight: 900;
+  letter-spacing: 0.1em; padding: 12px 22px; border: none;
+  border-radius: 2px; cursor: pointer; transition: opacity 0.2s;
+}
+.btn-propose:hover { opacity: 0.85; }
+.btn-reset-prop {
+  font-family: 'Unbounded', sans-serif; font-size: 7.5px; font-weight: 700;
+  letter-spacing: 0.08em; padding: 11px 14px; background: transparent;
+  border: 1px solid var(--border2); color: var(--muted);
+  border-radius: 2px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+}
+.btn-reset-prop:hover { border-color: #444; color: var(--light); }
+
+.proposals-list { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+.proposal-item {
+  background: var(--surface); border: 1px solid var(--border);
+  padding: 14px 16px; border-left: 3px solid #333;
+  display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start;
+}
+.prop-rank-badge {
+  font-family: 'Unbounded', sans-serif; font-size: 7px; font-weight: 700;
+  padding: 3px 8px; border-radius: 2px; white-space: nowrap; margin-top: 2px;
+}
+.prop-content {}
+.prop-name {
+  font-family: 'Unbounded', sans-serif; font-size: 14px; font-weight: 900;
+  letter-spacing: -0.01em; margin-bottom: 3px;
+}
+.prop-why { font-size: 11px; color: #555; font-style: italic; line-height: 1.5; }
+.prop-author { font-size: 9px; color: #333; letter-spacing: 0.08em; margin-top: 4px; }
+.proposals-empty { font-size: 11px; color: #222; font-style: italic; }
+
+/* ━━━ BOTTOM PANELS ━━━ */
+.bottom-panels {
+  max-width: 1440px; margin: 0 auto; padding: 0 20px 80px;
+  display: grid; grid-template-columns: 1fr;
+  gap: 40px; align-items: start;
+}
+@media(min-width:800px){ .bottom-panels { padding: 0 40px 80px; grid-template-columns: 1fr 280px; } }
+
+.panel-title {
+  font-family: 'Unbounded', sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.25em; text-transform: uppercase; color: var(--muted);
+  margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between;
+}
+.btn-reset {
+  font-family: 'Unbounded', sans-serif; font-size: 7.5px; font-weight: 700;
+  letter-spacing: 0.08em; padding: 5px 11px; background: transparent;
+  border: 1px solid var(--border2); color: var(--muted);
+  border-radius: 2px; cursor: pointer; transition: border-color 0.2s, color 0.2s;
+}
+.btn-reset:hover { border-color: #444; color: var(--light); }
+
+.results-bars { display: flex; flex-direction: column; gap: 5px; }
+.result-row {
+  display: grid; grid-template-columns: 100px 1fr 36px;
+  align-items: center; gap: 8px; opacity: 0.2; transition: opacity 0.3s;
+}
+@media(min-width:400px){ .result-row { grid-template-columns: 120px 1fr 36px; } }
+.result-row.has-votes { opacity: 1; }
+.result-name { font-family: 'Unbounded', sans-serif; font-size: 9px; font-weight: 700; color: var(--light); text-align: right; }
+.result-bar-wrap { height: 14px; background: #111; border-radius: 1px; overflow: hidden; }
+.result-bar { height: 100%; border-radius: 1px; width: 0%; transition: width 0.5s cubic-bezier(0.4,0,0.2,1); opacity: 0.8; }
+.result-num { font-family: 'Unbounded', sans-serif; font-size: 9px; font-weight: 700; color: var(--muted2); text-align: right; }
+
+.voters-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.voter-chip {
+  font-size: 10px; padding: 4px 11px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 20px; color: #444; transition: all 0.2s;
+}
+.voter-chip.active { border-color: #333; color: var(--light); }
+
+/* ━━━ COMPARATIVA PANEL ━━━ */
+.comp-header { max-width: 1440px; margin: 0 auto; padding: 32px 20px 28px; }
+@media(min-width:600px){ .comp-header { padding: 48px 40px 36px; } }
+.comp-title {
+  font-family: 'Unbounded', sans-serif; font-size: clamp(22px, 4vw, 48px);
+  font-weight: 900; letter-spacing: -0.03em; line-height: 0.95; margin-bottom: 8px;
+}
+.comp-subtitle { font-size: 12px; color: var(--muted2); font-style: italic; }
+
+.filter-bar {
+  max-width: 1440px; margin: 0 auto; padding: 0 20px 24px;
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+}
+@media(min-width:600px){ .filter-bar { padding: 0 40px 28px; } }
+.filter-label { font-size: 8px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); margin-right: 6px; }
+.filter-btn {
+  font-family: 'DM Sans', sans-serif; font-size: 10px; padding: 5px 13px;
+  background: transparent; border: 1px solid var(--border2); color: var(--muted2);
+  border-radius: 20px; cursor: pointer; transition: all 0.2s;
+}
+.filter-btn:hover { border-color: #444; color: var(--light); }
+.filter-btn.active { background: var(--light); color: #000; border-color: var(--light); }
+
+.comp-table-wrap { max-width: 1440px; margin: 0 auto; padding: 0 20px 80px; overflow-x: auto; }
+@media(min-width:600px){ .comp-table-wrap { padding: 0 40px 80px; } }
+.comp-table { min-width: 900px; width: 100%; border-collapse: separate; border-spacing: 0 2px; }
+.comp-table th {
+  font-family: 'Unbounded', sans-serif; font-size: 8px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted);
+  padding: 10px 14px; text-align: left; background: #0a0a0a;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.comp-table th:first-child { width: 130px; }
+.comp-table td {
+  padding: 14px; background: var(--surface); font-size: 11px;
+  line-height: 1.55; color: #ccc; vertical-align: top;
+  border-bottom: 1px solid var(--bg);
+}
+.comp-table td:first-child {
+  font-family: 'Unbounded', sans-serif; font-size: 11px; font-weight: 900;
+  color: var(--light); border-left: 3px solid var(--c, #333); white-space: nowrap;
+}
+.comp-table tr:hover td { background: #131313; }
+.comp-table td strong { color: var(--light); font-weight: 600; }
+.comp-table td em { font-style: italic; color: #666; }
+.ctag {
+  display: inline-block; font-family: 'Unbounded', sans-serif; font-size: 6.5px;
+  font-weight: 700; letter-spacing: 0.07em; padding: 2px 7px; border-radius: 2px;
+  margin-top: 4px; vertical-align: middle; margin-left: 4px;
+}
+.comp-table tr.hidden { display: none; }
+
+/* ━━━ TOAST ━━━ */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--light); color: #000;
+  font-family: 'Unbounded', sans-serif; font-size: 9px; font-weight: 700;
+  letter-spacing: 0.08em; padding: 11px 20px; border-radius: 3px;
+  opacity: 0; transition: opacity 0.25s, transform 0.25s;
+  pointer-events: none; z-index: 9998; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ━━━ IDENTITY GATE ━━━ -->
+<div class="gate" id="gate">
+  <div class="gate-box">
+    <div class="gate-logo">ECO LIVE × FESTIVAL</div>
+    <div class="gate-title">¿Cuál es<br>tu <em>nombre?</em></div>
+    <div class="gate-sub">Para registrar tus votos necesitamos identificarte. Solo una vez.</div>
+    <label class="gate-label">Tu nombre</label>
+    <input type="text" class="gate-input" id="gateInput" placeholder="Escribe aquí..." maxlength="24" autofocus>
+    <button class="gate-btn" onclick="enterApp()">ENTRAR A VOTAR →</button>
+  </div>
+</div>
+
+<!-- ━━━ TAB BAR ━━━ -->
+<div class="tab-bar">
+  <div class="tab-logo">ECO LIVE</div>
+  <button class="tab-btn active" onclick="switchTab('vote', this)">Votación</button>
+  <button class="tab-btn" onclick="switchTab('proponer', this)">Proponer nombres</button>
+  <button class="tab-btn" onclick="switchTab('comp', this)">Comparativa</button>
+  <div class="tab-right">
+    <div class="voter-pill-bar" id="voterDisplay" onclick="changeVoter()">Sin identificar</div>
+  </div>
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━ VOTE PANEL ━━━━━━━━━━━━━━━━━━ -->
+<div class="tab-panel active" id="panel-vote">
+
+  <div class="vote-header">
+    <div>
+      <div class="vote-title">Elige el<br><em>nombre</em><br>del festival.</div>
+    </div>
+    <div class="vote-meta">
+      <div class="meta-stat">
+        <span class="meta-num" id="totalVoters">0</span>
+        <span class="meta-label">Votantes</span>
+      </div>
+      <div class="meta-div"></div>
+      <div class="meta-stat">
+        <span class="meta-num">14</span>
+        <span class="meta-label">Opciones</span>
+      </div>
+      <div class="meta-div"></div>
+      <div class="meta-stat">
+        <span class="meta-num">3</span>
+        <span class="meta-label">Votos c/u</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="instructions-bar">
+    <div class="i-item"><span class="i-badge gold">1°</span> Favorito absoluto (3 pts)</div>
+    <div class="i-item"><span class="i-badge silver">2°</span> Segundo (2 pts)</div>
+    <div class="i-item"><span class="i-badge bronze">3°</span> Tercero (1 pt)</div>
+  </div>
+
+  <div class="names-grid" id="namesGrid"></div>
+
+  <div class="bottom-panels">
+    <div>
+      <div class="panel-title">
+        Resultados en tiempo real
+        <button class="btn-reset" onclick="resetMyVotes()">RESETEAR MIS VOTOS</button>
+      </div>
+      <div class="results-bars" id="resultsBars"></div>
+    </div>
+    <div>
+      <div class="panel-title">Personas que votaron</div>
+      <div class="voters-list" id="votersList">
+        <span style="font-size:11px;color:#222;font-style:italic;">Nadie ha votado aún.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━ PROPONER PANEL ━━━━━━━━━━━━━━━━━━ -->
+<div class="tab-panel" id="panel-proponer">
+
+  <div class="vote-header">
+    <div>
+      <div class="vote-title">Propón tus<br><em>propios</em><br>nombres.</div>
+    </div>
+  </div>
+
+  <div class="propose-section">
+    <div class="propose-header">
+      <div>
+        <div class="propose-title">Si ninguno te convence,<br><em>propón los tuyos.</em></div>
+        <div class="propose-sub">Escribe hasta 3 nombres alternativos con una razón breve.</div>
+      </div>
+    </div>
+
+    <div class="propose-grid">
+      <div class="propose-field">
+        <div class="propose-num"><span class="pn-badge pn-1">1</span> PRIMERA OPCIÓN</div>
+        <input type="text" class="propose-input" id="prop1" placeholder="Nombre del festival" maxlength="30">
+        <textarea class="propose-why" id="why1" placeholder="¿Por qué funciona?"></textarea>
+      </div>
+      <div class="propose-field">
+        <div class="propose-num"><span class="pn-badge pn-2">2</span> SEGUNDA OPCIÓN</div>
+        <input type="text" class="propose-input" id="prop2" placeholder="Nombre del festival" maxlength="30">
+        <textarea class="propose-why" id="why2" placeholder="¿Por qué funciona?"></textarea>
+      </div>
+      <div class="propose-field">
+        <div class="propose-num"><span class="pn-badge pn-3">3</span> TERCERA OPCIÓN</div>
+        <input type="text" class="propose-input" id="prop3" placeholder="Nombre del festival" maxlength="30">
+        <textarea class="propose-why" id="why3" placeholder="¿Por qué funciona?"></textarea>
+      </div>
+    </div>
+
+    <div class="propose-actions">
+      <button class="btn-propose" onclick="submitProposals()">ENVIAR PROPUESTAS →</button>
+      <button class="btn-reset-prop" onclick="clearMyProposals()">LIMPIAR MIS PROPUESTAS</button>
+    </div>
+
+    <div class="proposals-list" id="proposalsList">
+      <div class="proposals-empty">Nadie ha propuesto nombres aún.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ━━━━━━━━━━━━━━━━━━ COMPARATIVA PANEL ━━━━━━━━━━━━━━━━━━ -->
+<div class="tab-panel" id="panel-comp">
+
+  <div class="comp-header">
+    <div class="comp-title">Tabla<br>comparativa.</div>
+    <div class="comp-subtitle">Consulta el análisis de cada nombre antes de votar.</div>
+  </div>
+
+  <div class="filter-bar">
+    <span class="filter-label">Filtrar</span>
+    <button class="filter-btn active" onclick="filterTable('all', this)">Todos</button>
+    <button class="filter-btn" onclick="filterTable('fuerza', this)">Fuerza</button>
+    <button class="filter-btn" onclick="filterTable('emotivo', this)">Emotivo</button>
+    <button class="filter-btn" onclick="filterTable('disrupcion', this)">Disrupción</button>
+    <button class="filter-btn" onclick="filterTable('origen', this)">Origen</button>
+    <button class="filter-btn" onclick="filterTable('limite', this)">Límite</button>
+  </div>
+
+  <div class="comp-table-wrap">
+    <table class="comp-table" id="compTable">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Energía</th>
+          <th>Emoción que activa</th>
+          <th>Tagline</th>
+          <th>Alcance global</th>
+          <th>Riesgo</th>
+          <th>Continuidad con Ceremonia</th>
+          <th>Veredicto</th>
+        </tr>
+      </thead>
+      <tbody id="compBody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const NAMES = [
+  { id:'deseo', name:'DESEO', color:'#C8102E', tagline:'No es coincidencia que estés aquí. Es deseo.', pills:['Fuerza','Magnético','Adulto'], categoria:'fuerza', comp:{ energia:'<strong>Magnética, oscura.</strong> Jala hacia adentro. No pide permiso.', emocion:'Urgencia. <em>"Necesito estar ahí."</em>', global:'No se traduce igual en inglés. <strong>Eso es poder.</strong><span class="ctag" style="background:#C8102E;color:#fff">VENTAJA LATINA</span>', riesgo:'Puede leerse como sexual sin la ejecución correcta.', continuidad:'<strong>Alta.</strong> Ceremonia → Deseo. El ritual que te lleva a lo que quieres.<span class="ctag" style="background:#C8102E;color:#fff">MÁS NATURAL</span>', veredicto:'El más difícil de ejecutar y el más memorable si se hace bien.' }},
+  { id:'suerte', name:'SUERTE', color:'#D4A800', tagline:'No todos llegan. Los que llegan, pertenecen.', pills:['Calidez','Misterio','Bilingüe'], categoria:'emotivo', comp:{ energia:'<strong>Luminosa, cálida.</strong> Abre los brazos. Te invita.', emocion:'Gratitud. <em>"Qué bueno que llegué."</em>', global:'Fonética universal. <strong>Misterio portátil en cualquier idioma.</strong>', riesgo:'Puede percibirse como pasivo — como si asistir dependiera del azar.', continuidad:'<strong>Media.</strong> El salto es abstracto pero funciona emocionalmente.', veredicto:'El más humano. Magia táctil que los demás no tienen.' }},
+  { id:'fantasia', name:'FANTASÍA', color:'#7B4FD4', tagline:'Aquí todo lo que imaginaste, existe.', pills:['Onírico','Expansivo','Sin límites'], categoria:'disrupcion', comp:{ energia:'<strong>Onírica, expansiva.</strong> Todo es posible aquí.', emocion:'Maravilla. <em>"Aquí soy otra versión de mí."</em>', global:'<em>Fantasy</em> ya existe y es enorme. <strong>Pierde singularidad.</strong><span class="ctag" style="background:#333;color:#888">RIESGO</span>', riesgo:'Fantasy en inglés ya ocupa ese territorio extensamente.', continuidad:'<strong>Media-alta.</strong> Del ritual a lo irreal. Tiene lógica poética.', veredicto:'El más expansivo visualmente. Necesita ejecución muy precisa.' }},
+  { id:'rueda', name:'RUEDA', color:'#D4580A', tagline:'Todo gira. Todos giramos.', pills:['Ciclo','Ancestral','Icónico'], categoria:'origen', comp:{ energia:'<strong>Circular, eterna.</strong> Todo gira. Todo vuelve.', emocion:'Pertenencia. <em>"Soy parte de algo más grande."</em>', global:'Sin equivalente exacto. <strong>Símbolo universal con nombre propio.</strong>', riesgo:'Puede parecer abstracto sin la narrativa correcta.', continuidad:'<strong>Alta.</strong> Ceremonia → Rueda. El ciclo que se repite y crece.<span class="ctag" style="background:#D4580A;color:#fff">SORPRESA</span>', veredicto:'Ícono visual con raíz ancestral y potencial de marca enorme.' }},
+  { id:'tentacion', name:'TENTACIÓN', color:'#B5215A', tagline:'Sabías que ibas a ceder.', pills:['Seducción','Cómplice','Oscuro'], categoria:'fuerza', comp:{ energia:'<strong>Seductora, peligrosa.</strong> Sabes que no deberías, pero vas.', emocion:'Rendición. <em>"No me pude resistir."</em>', global:'<em>Temptation</em> existe pero TENTACIÓN tiene más cuerpo.<span class="ctag" style="background:#B5215A;color:#fff">VENTAJA LATINA</span>', riesgo:'Territorio cercano a DESEO. Puede parecer derivativo.', continuidad:'<strong>Media-alta.</strong> Ceremonia como preparación. Tentación como lo que viene después.', veredicto:'El más íntimo y oscuro. Para los que saben a qué van.' }},
+  { id:'borde', name:'BORDE', color:'#1F8A70', tagline:'Aquí empieza lo que no tiene nombre.', pills:['Límite','Liminal','Arquitectónico'], categoria:'limite', comp:{ energia:'<strong>Tensa, liminal.</strong> Donde termina lo conocido y empieza todo lo demás.', emocion:'Vértigo. <em>"Estoy justo donde termina el mapa."</em>', global:'<em>Border</em> tiene carga política MX-EEUU. <strong>En español es libre y poético.</strong><span class="ctag" style="background:#333;color:#888">PRECAUCIÓN</span>', riesgo:'Border en inglés tiene connotación política fuerte.', continuidad:'<strong>Alta.</strong> Ceremonia como centro. Borde como lo que está más allá.<span class="ctag" style="background:#1F8A70;color:#fff">POTENTE</span>', veredicto:'El más arquitectónico — experiencias liminales únicas.' }},
+  { id:'genesis', name:'GÉNESIS', color:'#2E86C1', tagline:'Todo empieza aquí.', pills:['Origen','Monumental','Bilingüe'], categoria:'origen', comp:{ energia:'<strong>Primordial, inaugural.</strong> El inicio de todo.', emocion:'Trascendencia. <em>"Fui parte del inicio."</em>', global:'<em>Genesis</em> funciona igual en cualquier idioma. <strong>Bíblico y universal.</strong><span class="ctag" style="background:#2E86C1;color:#fff">BILINGÜE</span>', riesgo:'Carga religiosa fuerte. Puede polarizar a una parte del público.', continuidad:'<strong>Alta.</strong> Ceremonia → Génesis. Del ritual al origen absoluto.<span class="ctag" style="background:#2E86C1;color:#fff">MUY FUERTE</span>', veredicto:'No es un festival — es el nombre de una era.' }},
+  { id:'cairo', name:'CAIRO', color:'#E74C3C', tagline:'Un lugar que no debería existir y existe.', pills:['Misterio','Civilización','Global'], categoria:'limite', comp:{ energia:'<strong>Exótica, monumental.</strong> Civilización y caos a la vez.', emocion:'Asombro. <em>"Esto es más grande que yo."</em>', global:'Cairo es una ciudad real con peso histórico enorme. <strong>Funciona en todo el mundo.</strong><span class="ctag" style="background:#E74C3C;color:#fff">GLOBAL</span>', riesgo:'Es el nombre de una ciudad real — puede generar confusión geográfica.', continuidad:'<strong>Media.</strong> Salto conceptual — de lo ritual a lo civilizacional.', veredicto:'Historia, misterio y escala en una sola palabra.' }},
+  { id:'absurdo', name:'ABSURDO', color:'#7F8C8D', tagline:'Porque sí.', pills:['Ironía','Ruptura','Gen Z'], categoria:'disrupcion', comp:{ energia:'<strong>Irónica, libre.</strong> Rompe las reglas del juego.', emocion:'Liberación. <em>"Aquí nada tiene que tener sentido."</em>', global:'<em>Absurd</em> funciona en inglés. <strong>Lenguaje Gen Z universal.</strong><span class="ctag" style="background:#7F8C8D;color:#fff">BILINGÜE</span>', riesgo:'Puede no tomarse en serio. El nombre trabaja en contra si el festival falla.', continuidad:'<strong>Media-baja.</strong> Ruptura total con Ceremonia. Puede ser genial o confuso.', veredicto:'El más atrevido conceptualmente. Polariza — y eso en branding es poder.' }},
+  { id:'sombra', name:'SOMBRA', color:'#95A5A6', tagline:'Lo que no se ve también existe.', pills:['Oscuridad','Elegante','Nocturno'], categoria:'fuerza', comp:{ energia:'<strong>Oscura, magnética.</strong> Lo que no se ve pero se siente.', emocion:'Intensidad. <em>"Algo en mí se despertó aquí."</em>', global:'<em>Shadow</em> en inglés pierde la poesía. <strong>SOMBRA es más poderosa en español.</strong>', riesgo:'Puede sonar oscuro o negativo para públicos más amplios.', continuidad:'<strong>Alta.</strong> Ceremonia → Sombra. El lado oscuro del ritual.<span class="ctag" style="background:#555;color:#fff">COHERENTE</span>', veredicto:'El más elegantemente oscuro. Noche pura.' }},
+  { id:'romances', name:'ROMANCES', color:'#8E44AD', tagline:'Todos vinieron por algo. Nadie se fue igual.', pills:['Plural','Narrativo','Emotivo'], categoria:'emotivo', comp:{ energia:'<strong>Plural, emotiva.</strong> Múltiples historias en un mismo lugar.', emocion:'Conexión. <em>"Aquí encontré algo o a alguien."</em>', global:'<em>Romances</em> igual en ambos idiomas. <strong>Pero en español suena más íntimo.</strong>', riesgo:'Puede confundirse con un festival de baladas o música romántica.', continuidad:'<strong>Media-alta.</strong> Ceremonia como rito colectivo. Romances como lo que produce.', veredicto:'El nombre ya cuenta una historia. Plural, humano, narrativo.' }},
+  { id:'epoca', name:'ÉPOCA', color:'#27AE60', tagline:'Esto no es un festival. Es una época.', pills:['Legado','Historia','Monumental'], categoria:'origen', comp:{ energia:'<strong>Monumental, histórica.</strong> Esto es un periodo, no un evento.', emocion:'Trascendencia. <em>"Fui parte de algo que va a recordarse."</em>', global:'<em>Epoch</em> existe en inglés pero ÉPOCA tiene más calor. <strong>Bilingüe con ventaja latina.</strong><span class="ctag" style="background:#27AE60;color:#fff">VENTAJA LATINA</span>', riesgo:'Puede sonar pretencioso si no se ejecuta con humildad y precisión.', continuidad:'<strong>Muy alta.</strong> Ceremonia → Época. Del ritual al tiempo que inaugura.<span class="ctag" style="background:#27AE60;color:#fff">LA MÁS FUERTE</span>', veredicto:'No nombra un festival. Nombra un periodo de la cultura.' }},
+  { id:'rumores', name:'RUMORES', color:'#5D6D7E', tagline:'Ya lo sabías antes de que te lo dijeran.', pills:['Complicidad','Viral','Anticipación'], categoria:'limite', comp:{ energia:'<strong>Susurrante, anticipatoria.</strong> Se sabe antes de que llegue.', emocion:'Complicidad. <em>"Yo ya sabía que esto iba a pasar."</em>', global:'<em>Rumors</em> en inglés es icónico (Fleetwood Mac). <strong>Funciona perfecto en ambos.</strong><span class="ctag" style="background:#5D6D7E;color:#fff">BILINGÜE NATURAL</span>', riesgo:'Puede sonar efímero. La narrativa tiene que ir en contra de eso.', continuidad:'<strong>Alta.</strong> Ceremonia → Rumores. Lo que se susurra después del ritual.<span class="ctag" style="background:#5D6D7E;color:#fff">MUY NATURAL</span>', veredicto:'El festival como secreto compartido. La marca más poderosa es la que se propaga sola.' }},
+  { id:'protopia', name:'PROTOPIA', color:'#3ABFBF', tagline:'No el futuro perfecto. El siguiente paso posible.', pills:['Futuro','Colectivo','Disrupción'], categoria:'disrupcion', comp:{ energia:'<strong>Progresiva, optimista.</strong> No utopía — algo mejor: acción real hacia adelante.', emocion:'Propósito. <em>"Aquí construimos algo."</em>', global:'Concepto global emergente (Kevin Kelly). <strong>Sin traducción — propiedad inmediata.</strong><span class="ctag" style="background:#3ABFBF;color:#000">ORIGINALIDAD</span>', riesgo:'Requiere explicación. El concepto no es evidente a primera vista.', continuidad:'<strong>Media-alta.</strong> Ceremonia como rito de inicio. Protopia como la dirección colectiva.', veredicto:'El más intelectual y con mayor potencial de comunidad. Marca que educa mientras convoca.' }},
+];
+
+// ━━━ CONFIG ━━━
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxMxYbvg-5ses-JUWDYOUpsAdaaCqurxYkK4pnW9zsyUcmogoG_Esa_7-nFMsoVWBnQ/exec";
+
+// ━━━ STATE ━━━
+let currentVoter = null;
+let allVotes = {};
+let allProposals = [];
+let pollInterval = null;
+
+// ━━━ SYNC ━━━
+async function syncFromSheet() {
+  try {
+    const r = await fetch(`${SCRIPT_URL}?action=load`);
+    const d = await r.json();
+    if (d.ok) {
+      d.rows.forEach(row => {
+        allVotes[row.voter] = { first: row.first||null, second: row.second||null, third: row.third||null };
+      });
+    }
+    const r2 = await fetch(`${SCRIPT_URL}?action=loadProposals`);
+    const d2 = await r2.json();
+    if (d2.ok) {
+      allProposals = d2.rows.map(r => ({ voter: r.voter, rank: Number(r.rank), name: r.name, why: r.why }));
+    }
+    renderAll();
+    renderProposals();
+  } catch(e) {}
+}
+
+async function saveVotesToSheet() {
+  if (!currentVoter) return;
+  const v = allVotes[currentVoter] || {};
+  const url = `${SCRIPT_URL}?action=save&voter=${encodeURIComponent(currentVoter)}&first=${encodeURIComponent(v.first||'')}&second=${encodeURIComponent(v.second||'')}&third=${encodeURIComponent(v.third||'')}`;
+  try { await fetch(url); } catch(e) {}
+}
+
+async function saveProposalToSheet(voter, rank, name, why) {
+  const url = `${SCRIPT_URL}?action=saveProposal&voter=${encodeURIComponent(voter)}&rank=${rank}&name=${encodeURIComponent(name)}&why=${encodeURIComponent(why)}`;
+  try { await fetch(url); } catch(e) {}
+}
+
+// ━━━ GATE ━━━
+async function enterApp() {
+  const input = document.getElementById('gateInput');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  currentVoter = name;
+  if (!allVotes[name]) allVotes[name] = { first: null, second: null, third: null };
+  document.getElementById('voterDisplay').innerHTML = `<strong>${name}</strong>`;
+  document.getElementById('gate').classList.add('hidden');
+  await syncFromSheet();
+  showToast(`Bienvenido, ${name} ✦`);
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(syncFromSheet, 8000);
+}
+
+function changeVoter() {
+  document.getElementById('gate').classList.remove('hidden');
+  document.getElementById('gateInput').value = currentVoter || '';
+  setTimeout(() => document.getElementById('gateInput').select(), 100);
+}
+
+// ━━━ TABS ━━━
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ━━━ VOTING ━━━
+function getMyRankFor(id) {
+  if (!currentVoter || !allVotes[currentVoter]) return null;
+  const v = allVotes[currentVoter];
+  if (v.first === id) return 1;
+  if (v.second === id) return 2;
+  if (v.third === id) return 3;
+  return null;
+}
+
+async function cardClicked(id) {
+  if (!currentVoter) { showToast('Ingresa tu nombre para votar'); return; }
+  const votes = allVotes[currentVoter];
+  const rank = getMyRankFor(id);
+  if (rank) {
+    if (votes.first === id) votes.first = null;
+    if (votes.second === id) votes.second = null;
+    if (votes.third === id) votes.third = null;
+  } else {
+    const n = NAMES.find(n => n.id === id);
+    if (!votes.first) { votes.first = id; showToast(`${n.name} — 1er lugar ✦`); }
+    else if (!votes.second) { votes.second = id; showToast(`${n.name} — 2do lugar`); }
+    else if (!votes.third) { votes.third = id; showToast(`${n.name} — 3er lugar`); }
+    else { showToast('Ya tienes 3 votos. Quita uno para cambiar.'); return; }
+  }
+  renderAll();
+  await saveVotesToSheet();
+}
+
+async function resetMyVotes() {
+  if (!currentVoter) return;
+  allVotes[currentVoter] = { first: null, second: null, third: null };
+  renderAll();
+  await saveVotesToSheet();
+  showToast('Votos reseteados');
+}
+
+function getScores() {
+  const s = {};
+  NAMES.forEach(n => s[n.id] = 0);
+  Object.values(allVotes).forEach(v => {
+    if (v.first)  s[v.first]  += 3;
+    if (v.second) s[v.second] += 2;
+    if (v.third)  s[v.third]  += 1;
+  });
+  return s;
+}
+
+function getTotalVoters() {
+  return Object.values(allVotes).filter(v => v.first || v.second || v.third).length;
+}
+
+// ━━━ PROPOSALS ━━━
+async function submitProposals() {
+  if (!currentVoter) { showToast('Ingresa tu nombre primero'); return; }
+  const fields = [
+    { name: document.getElementById('prop1').value.trim(), why: document.getElementById('why1').value.trim(), rank: 1 },
+    { name: document.getElementById('prop2').value.trim(), why: document.getElementById('why2').value.trim(), rank: 2 },
+    { name: document.getElementById('prop3').value.trim(), why: document.getElementById('why3').value.trim(), rank: 3 },
+  ];
+  if (!fields.some(f => f.name)) { showToast('Escribe al menos un nombre'); return; }
+  allProposals = allProposals.filter(p => p.voter !== currentVoter);
+  for (const f of fields) {
+    await saveProposalToSheet(currentVoter, f.rank, f.name, f.why);
+    if (f.name) allProposals.push({ voter: currentVoter, ...f });
+  }
+  renderProposals();
+  const count = fields.filter(f=>f.name).length;
+  showToast(`${count} propuesta${count>1?'s':''} enviada${count>1?'s':''} ✦`);
+}
+
+async function clearMyProposals() {
+  if (!currentVoter) return;
+  allProposals = allProposals.filter(p => p.voter !== currentVoter);
+  ['prop1','prop2','prop3','why1','why2','why3'].forEach(id => document.getElementById(id).value = '');
+  for (let rank=1; rank<=3; rank++) await saveProposalToSheet(currentVoter, rank, '', '');
+  renderProposals(); showToast('Propuestas eliminadas');
+}
+
+function renderProposals() {
+  const container = document.getElementById('proposalsList');
+  if (!allProposals.length) {
+    container.innerHTML = '<div class="proposals-empty">Nadie ha propuesto nombres aún.</div>';
+    return;
+  }
+  const rankColors = { 1: '#C8A84B', 2: '#777', 3: '#7A4F30' };
+  const rankLabels = { 1: '1° OPCIÓN', 2: '2° OPCIÓN', 3: '3° OPCIÓN' };
+  container.innerHTML = allProposals.map(p => `
+    <div class="proposal-item" style="border-left-color:${rankColors[p.rank]}">
+      <span class="prop-rank-badge" style="background:${rankColors[p.rank]};color:${p.rank===3?'#fff':'#000'}">${rankLabels[p.rank]}</span>
+      <div class="prop-content">
+        <div class="prop-name">${p.name.toUpperCase()}</div>
+        ${p.why ? `<div class="prop-why">"${p.why}"</div>` : ''}
+        <div class="prop-author">— ${p.voter}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ━━━ RENDER ━━━
+function renderAll() {
+  renderCards(); renderResults(); renderVoters();
+  document.getElementById('totalVoters').textContent = getTotalVoters();
+}
+
+function renderCards() {
+  const grid = document.getElementById('namesGrid');
+  grid.innerHTML = '';
+  const scores = getScores();
+  NAMES.forEach(n => {
+    const rank = getMyRankFor(n.id);
+    const totalScore = scores[n.id];
+    const voterCount = Object.values(allVotes).filter(v => v.first===n.id||v.second===n.id||v.third===n.id).length;
+    const card = document.createElement('div');
+    card.className = `card${rank ? ` voted-${rank}` : ''}`;
+    card.style.setProperty('--c', n.color);
+    card.onclick = () => cardClicked(n.id);
+    const rankLabel = rank===1?'1° LUGAR':rank===2?'2° LUGAR':rank===3?'3° LUGAR':'';
+    let dotsHtml = '';
+    for (let i=0;i<8;i++) dotsHtml += `<div class="vote-dot${i<voterCount?' active':''}"></div>`;
+    card.innerHTML = `
+      <div class="rank-badge">${rankLabel}</div>
+      <div class="card-name">${n.name}</div>
+      <div class="card-tagline">${n.tagline}</div>
+      <div class="card-pills">${n.pills.map(p=>`<span class="pill">${p}</span>`).join('')}</div>
+      <div class="card-footer">
+        <div style="display:flex;align-items:center;gap:5px;">
+          <div class="vote-dots">${dotsHtml}</div>
+          <span class="vote-count">${totalScore>0?totalScore+'pts':''}</span>
+        </div>
+        <span class="click-hint">${rank?'QUITAR':'VOTAR'}</span>
+      </div>`;
+    grid.appendChild(card);
+  });
+}
+
+function renderResults() {
+  const scores = getScores();
+  const maxScore = Math.max(...Object.values(scores), 1);
+  const sorted = [...NAMES].sort((a,b) => scores[b.id]-scores[a.id]);
+  const container = document.getElementById('resultsBars');
+  container.innerHTML = '';
+  sorted.forEach((n,i) => {
+    const score = scores[n.id];
+    const pct = (score/maxScore)*100;
+    const row = document.createElement('div');
+    row.className = `result-row${score>0?' has-votes':''}`;
+    row.innerHTML = `
+      <div class="result-name">${n.name}</div>
+      <div class="result-bar-wrap"><div class="result-bar" style="width:0%;background:${n.color}"></div></div>
+      <div class="result-num">${score}</div>`;
+    container.appendChild(row);
+    setTimeout(() => row.querySelector('.result-bar').style.width = pct+'%', i*25);
+  });
+}
+
+function renderVoters() {
+  const container = document.getElementById('votersList');
+  const voters = Object.keys(allVotes).filter(v => allVotes[v].first||allVotes[v].second||allVotes[v].third);
+  if (!voters.length) {
+    container.innerHTML = '<span style="font-size:11px;color:#222;font-style:italic;">Nadie ha votado aún.</span>';
+    return;
+  }
+  container.innerHTML = voters.map(v => `<span class="voter-chip${v===currentVoter?' active':''}">${v}</span>`).join('');
+}
+
+// ━━━ COMP TABLE ━━━
+function buildCompTable() {
+  const tbody = document.getElementById('compBody');
+  NAMES.forEach(n => {
+    const tr = document.createElement('tr');
+    tr.dataset.cat = n.categoria;
+    tr.style.setProperty('--c', n.color);
+    tr.innerHTML = `
+      <td>${n.name}</td>
+      <td>${n.comp.energia}</td>
+      <td>${n.comp.emocion}</td>
+      <td><em style="color:#888;font-style:italic;font-size:11px">"${n.tagline}"</em></td>
+      <td>${n.comp.global}</td>
+      <td>${n.comp.riesgo}</td>
+      <td>${n.comp.continuidad}</td>
+      <td style="font-style:italic;color:#888;font-size:11px">${n.comp.veredicto}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function filterTable(cat, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('#compBody tr').forEach(tr => {
+    tr.classList.toggle('hidden', cat !== 'all' && tr.dataset.cat !== cat);
+  });
+}
+
+// ━━━ TOAST ━━━
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ━━━ INIT ━━━
+buildCompTable();
+renderAll();
+renderProposals();
+
+document.getElementById('gateInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') enterApp();
+});
+</script>
+</body>
+</html>
